@@ -1,0 +1,76 @@
+name: FanchmWrt RE-SP-01B
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 配置档位
+        required: true
+        default: minimal
+        type: choice
+        options: [minimal, full]
+      mirror:
+        description: feeds 走 GitHub 镜像（国内更快）
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches: [main, master]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+
+    steps:
+      - name: 检出构建工程
+        uses: actions/checkout@v4
+
+      - name: 释放磁盘空间（runner 默认只剩约 20G，不够编 OpenWrt）
+        run: |
+          df -h / || true
+          sudo rm -rf /opt/hostedtoolcache /usr/local/lib/android /usr/share/dotnet \
+                      /opt/ghc /usr/local/share/boost /usr/lib/jvm /usr/share/swift || true
+          sudo apt-get clean || true
+          df -h / || true
+
+      - name: 缓存下载目录
+        uses: actions/cache@v4
+        with:
+          path: fanchmwrt-dl
+          key: dl-${{ runner.os }}-${{ hashFiles('config/*.seed') }}
+          restore-keys: dl-${{ runner.os }}-
+
+      - name: 编译（调用 scripts/build.sh）
+        env:
+          PROFILE: ${{ inputs.profile || 'minimal' }}
+          USE_MIRROR: ${{ (inputs.mirror == false && '0') || '1' }}
+        run: |
+          chmod +x scripts/build.sh
+          ./scripts/build.sh
+
+      - name: 收集固件
+        run: |
+          mkdir -p dist
+          cp out/*.bin out/*.itb dist/ 2>/dev/null || true
+          cp -r out/fanchmwrt-apks dist/ 2>/dev/null || true
+          ls -lh dist
+
+      - name: 上传 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fanchmwrt-re-sp-01b-${{ inputs.profile || 'minimal' }}
+          path: dist/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 发布 Release（仅 tag 触发）
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes

@@ -1,0 +1,86 @@
+# FanchmWrt for JDCloud RE-SP-01B —— 全功能版配置（激进）
+#
+# ⚠ 警告：RE-SP-01B 的 firmware 分区只有 0x1ab0000 = 27,328 KB，
+#    本配置把 DPI/审计/LuCI 全家桶都编进镜像，极大概率触发
+#    "image is too big" 编译失败。
+#    稳一点的做法：用 re-sp-01b-minimal.seed 编译，刷机后跑
+#    scripts/extroot-emmc.sh 把 overlay 扩到 eMMC，再 apk 安装这些组件。
+#
+# 用法：cp config/re-sp-01b-full.seed fanchmwrt/.config && make defconfig
+
+## 版本标识（影响镜像文件名前缀，去掉则回到 openwrt- 前缀）
+CONFIG_VERSION_DIST="FanchmWrt"
+
+## 目标平台
+CONFIG_TARGET_ramips=y
+CONFIG_TARGET_ramips_mt7621=y
+CONFIG_TARGET_ramips_mt7621_DEVICE_jdcloud_re-sp-01b=y
+
+## 镜像
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+CONFIG_TARGET_IMAGES_GZIP=y
+CONFIG_IB=y
+# CONFIG_SDK is not set
+# CONFIG_ALL is not set
+# CONFIG_ALL_KMODS is not set
+# CONFIG_KERNEL_DEBUG_INFO is not set
+# CONFIG_KERNEL_DEBUG_KERNEL is not set
+# CONFIG_KERNEL_KALLSYMS is not set
+
+## LuCI
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+CONFIG_PACKAGE_luci-app-firewall=y
+CONFIG_PACKAGE_luci-app-package-manager=y
+
+## 无线 / 存储 / USB
+CONFIG_PACKAGE_kmod-mt7603=y
+CONFIG_PACKAGE_kmod-mt7615-firmware=y
+CONFIG_PACKAGE_kmod-mmc-mtk=y
+CONFIG_PACKAGE_kmod-usb3=y
+CONFIG_PACKAGE_wpad-basic-mbedtls=y
+CONFIG_PACKAGE_wireless-regdb=y
+CONFIG_PACKAGE_iw=y
+CONFIG_PACKAGE_block-mount=y
+CONFIG_PACKAGE_blockd=y
+CONFIG_PACKAGE_kmod-fs-ext4=y
+CONFIG_PACKAGE_kmod-fs-vfat=y
+CONFIG_PACKAGE_kmod-nls-utf8=y
+CONFIG_PACKAGE_e2fsprogs=y
+CONFIG_PACKAGE_lsblk=y
+CONFIG_PACKAGE_fdisk=y
+CONFIG_PACKAGE_kmod-usb-storage=y
+CONFIG_PACKAGE_kmod-usb-storage-uas=y
+CONFIG_PACKAGE_kmod-scsi-core=y
+CONFIG_PACKAGE_usbutils=y
+
+## 工具
+CONFIG_PACKAGE_ca-certificates=y
+CONFIG_PACKAGE_curl=y
+CONFIG_PACKAGE_openssl-util=y
+CONFIG_PACKAGE_iperf3=y
+CONFIG_PACKAGE_ethtool=y
+CONFIG_PACKAGE_terminfo=y
+CONFIG_PACKAGE_htop=y
+CONFIG_PACKAGE_nano-full=y
+CONFIG_PACKAGE_bash=y
+CONFIG_PACKAGE_openssh-sftp-server=y
+
+## FanchmWrt 全家桶（来自 fanchmwrt-packages feed）
+CONFIG_PACKAGE_luci-app-fwx-app-center=y
+CONFIG_PACKAGE_luci-app-fwx-appfilter=y
+CONFIG_PACKAGE_luci-app-fwx-dashboard=y
+CONFIG_PACKAGE_luci-app-fwx-dashboard-setting=y
+CONFIG_PACKAGE_luci-app-fwx-feature=y
+CONFIG_PACKAGE_luci-app-fwx-network=y
+CONFIG_PACKAGE_luci-app-fwx-session-stat=y
+CONFIG_PACKAGE_luci-app-fwx-system=y
+CONFIG_PACKAGE_luci-app-fwx-traffic-stat=y
+CONFIG_PACKAGE_luci-app-fwx-user=y
+CONFIG_PACKAGE_luci-app-fwx-user-record=y
+CONFIG_PACKAGE_luci-app-fwx-record=y
+CONFIG_PACKAGE_luci-app-fwx-record-whitelist=y
+CONFIG_PACKAGE_luci-app-fwx-mac-blacklist=y
+CONFIG_PACKAGE_luci-app-fwx-macfilter=y
+CONFIG_PACKAGE_luci-app-fwx-wireless=y
+CONFIG_PACKAGE_luci-app-fwx-resources=y
