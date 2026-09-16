@@ -6,7 +6,7 @@
 
 | 问题 | 结论 |
 | --- | --- |
-| 要不要自己写 DTS / 设备树？ | **不用**。FanchmWrt 25.12.4 起已内置 `target/linux/ramips/dts/mt7621_jdcloud_re-sp-01b.dts` 和 `mt7621.mk` 里的 `Device/jdcloud_re-sp-01b`（镜像上限 27328k，默认带 kmod-mt7603 / kmod-mt7615-firmware / kmod-mmc-mtk / kmod-usb3）。本工程已验证这两处存在，缺一就报错停机 |
+| 要不要自己写 DTS / 设备树？ | **不用**。FanchmWrt 25.12.4 起已内置 `target/linux/ramips/dts/mt7621_jdcloud_re-sp-01b.dts` 和 `mt7621.mk` 里的 `Device/jdcloud_re-sp-01b`（镜像上限 27328k，默认带 kmod-mt7603 / kmod-mt7615-firmware / kmod-mmc-mtk / kmod-usb2）。本工程已验证这两处存在，缺一就报错停机 |
 | 主要难点是什么？ | **闪存太小**。32MB NOR 里 firmware 分区只有 27MB，FanchmWrt 的 DPI / OAF 特征库 / LuCI 全家桶塞不下 |
 | 怎么解决？ | 精简镜像（约 14–18MB）刷进去 → 用机身自带 64/128GB eMMC 做 extroot 扩展 overlay → 再离线安装完整功能组件 |
 | 软件包装哪个命令？ | 25.12 基于 OpenWrt 快照，**默认 apk（apk-tools）**，不是 opkg；且官方源没有你这套内核版本的包，所以要离线装自己编译出来的 apk |
@@ -21,7 +21,7 @@
 | 板载存储 | 64GB / 128GB eMMC（`/dev/mmcblk0`，走 kmod-mmc-mtk） |
 | 无线 | 2.4G MT7603EN（factory@0x0）+ 5G MT7615N（factory@0x8000） |
 | 网口 | 1×GE WAN + 2×GE LAN（内置 MT7530，DSA 架构） |
-| USB | 1×USB 3.0 |
+| USB | 1×USB 2.0（MT7621 原生 EHCI） |
 | 按键 / LED | Reset = GPIO18；状态灯 红 GPIO6 / 绿 GPIO8 / 蓝 GPIO12 |
 
 闪存分区（来自设备树）：
@@ -48,6 +48,7 @@ fanchmwrt-re-sp-01b/
 ├── scripts/
 │   ├── build.sh                 # 构建主脚本（云端/本地共用）
 │   ├── extroot-emmc.sh          # 路由器上执行：eMMC 扩展 overlay
+│   ├── extroot-usb.sh           # 路由器上执行：USB 移动硬盘扩展 overlay
 │   └── install-fwx-apps.sh      # 路由器上执行：离线安装 DPI 全家桶
 └── .github/workflows/build-resp01b.yml   # GitHub Actions 云编译
 ```
@@ -118,12 +119,20 @@ make image PROFILE="jdcloud_re-sp-01b" PACKAGES="luci luci-i18n-base-zh-cn block
 | 4 | 首次启动等 1–2 分钟，访问 `http://192.168.1.1`，默认无密码（LuCI 会提示设置） |
 | 5 | 无线默认关闭：LuCI → 网络 → 无线 → 启用 2.4G/5G，国家码选 CN |
 
-## 扩容：把 overlay 搬到 eMMC
+## 扩容：把 overlay 搬到 eMMC / USB 移动硬盘
 
 ```bash
 scp scripts/extroot-emmc.sh root@192.168.1.1:/tmp/
 ssh root@192.168.1.1 'sh /tmp/extroot-emmc.sh'      # 默认划 32GB，可 SIZE_GB=64
 ssh root@192.168.1.1 'df -h | grep overlay'          # 应看到几十 GB
+```
+
+> 没有 eMMC（或不想动 eMMC）也能扩：把 overlay 搬到 USB 移动硬盘，效果一样。镜像已带 `kmod-usb2` / `kmod-usb-storage` / `block-mount`，脚本开箱即用。
+
+```bash
+scp scripts/extroot-usb.sh root@192.168.1.1:/tmp/
+ssh root@192.168.1.1 'sh /tmp/extroot-usb.sh'      # 默认 /dev/sda，可 DISK=/dev/sdb
+ssh root@192.168.1.1 'mount | grep overlay'        # 应看到 /dev/sda1 on /overlay
 ```
 
 之后装完整功能组件：

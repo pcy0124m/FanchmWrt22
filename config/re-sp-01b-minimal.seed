@@ -2,7 +2,7 @@
 # 用法：cp config/re-sp-01b-minimal.seed fanchmwrt/.config && cd fanchmwrt && make defconfig
 #
 # 设计目标：镜像体积控制在 ~14-18MB，稳稳装进 27MB 的 firmware 分区。
-# 完整版 DPI / OAF 特征库 / LuCI 全家桶不进镜像，刷机后通过 eMMC extroot 再装。
+# 完整版 DPI / OAF 特征库 / LuCI 全家桶不进镜像，刷机后通过 eMMC / USB 移动硬盘 extroot 再装。
 
 ## 版本标识（影响镜像文件名前缀，去掉则回到 openwrt- 前缀）
 CONFIG_VERSION_DIST="FanchmWrt"
@@ -57,16 +57,18 @@ CONFIG_PACKAGE_luci-app-ksmbd=y           # SMB 文件共享（官方源，稳�
 CONFIG_PACKAGE_luci-app-fileassistant=y   # 网页文件管理器（kenzok78，第三方）
 CONFIG_PACKAGE_luci-app-store=y           # iStore 应用商店（第三方）
 
-## 无线（设备默认已带 kmod-mt7603 + kmod-mt7615-firmware + kmod-mmc-mtk + kmod-usb3）
+## 无线（设备默认已带 kmod-mt7603 + kmod-mt7615-firmware + kmod-mmc-mtk）
 CONFIG_PACKAGE_kmod-mt7603=y
 CONFIG_PACKAGE_kmod-mt7615-firmware=y
 CONFIG_PACKAGE_kmod-mmc-mtk=y
+## USB：MT7621 自带的是 USB 2.0（EHCI），必须由 kmod-usb2 驱动；kmod-usb3 仅当板载 xHCI 才有用
+CONFIG_PACKAGE_kmod-usb2=y
 CONFIG_PACKAGE_kmod-usb3=y
 CONFIG_PACKAGE_wpad-basic-mbedtls=y
 CONFIG_PACKAGE_wireless-regdb=y
 CONFIG_PACKAGE_iw=y
 
-## 存储 / eMMC / extroot（一代机身自带 64~128GB eMMC，走 /dev/mmcblk0）
+## 存储 / eMMC / extroot（机身 eMMC 走 /dev/mmcblk0；无 eMMC 时用 USB 移动硬盘，见 scripts/extroot-usb.sh）
 CONFIG_PACKAGE_block-mount=y
 CONFIG_PACKAGE_blockd=y
 CONFIG_PACKAGE_kmod-fs-ext4=y
@@ -76,11 +78,14 @@ CONFIG_PACKAGE_e2fsprogs=y
 CONFIG_PACKAGE_lsblk=y
 CONFIG_PACKAGE_fdisk=y
 
-## USB 存储（USB3.0 口插 U 盘 / 移动硬盘）
+## USB 存储（插 U 盘 / 移动硬盘做 extroot，见 scripts/extroot-usb.sh）
 CONFIG_PACKAGE_kmod-usb-storage=y
 CONFIG_PACKAGE_kmod-usb-storage-uas=y
 CONFIG_PACKAGE_kmod-scsi-core=y
 CONFIG_PACKAGE_usbutils=y
+## extroot-usb.sh 直接用到的工具（烘进镜像，刷机后免联网）
+CONFIG_PACKAGE_blkid=y
+CONFIG_PACKAGE_parted=y
 
 ## 网络与日常工具（保持克制，需要再加）
 CONFIG_PACKAGE_ca-certificates=y
