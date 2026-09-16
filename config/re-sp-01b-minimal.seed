@@ -7,6 +7,10 @@
 ## 版本标识（影响镜像文件名前缀，去掉则回到 openwrt- 前缀）
 CONFIG_VERSION_DIST="FanchmWrt"
 
+## 根密码（空字符串 = 无密码，LuCI 可直接进；SSH 需先 passwd 设密）
+## 同时 files/etc/shadow 也强制置空，双保险
+CONFIG_TARGET_ROOTFS_ROOT_PASSWORD=""
+
 ## 目标平台
 CONFIG_TARGET_ramips=y
 CONFIG_TARGET_ramips_mt7621=y
@@ -45,6 +49,14 @@ CONFIG_PACKAGE_luci-app-firewall=y
 CONFIG_PACKAGE_luci-app-package-manager=y
 # luci-app-ttyd / luci-app-statistics 等按需自行在 menuconfig 里开
 # CONFIG_PACKAGE_luci-app-ttyd is not set
+
+## 文件管理器 / 应用商店（第三方 feed，由 build.sh 注入：istore / filemanager）
+## 这两个是第三方包，对本快照基线（kernel 6.12 + apk）属「尽力编译」：
+## 若云端报某包装不上或 image is too big，把下面 4 行注释掉重推即可。
+CONFIG_PACKAGE_luci-app-ksmbd=y          # SMB 文件共享（官方源，稳）
+CONFIG_PACKAGE_luci-app-filemanager=y   # 网页文件管理器（第三方）
+CONFIG_PACKAGE_luci-app-store=y          # iStore 应用商店（第三方）
+CONFIG_PACKAGE_istore=y                  # iStore 后端
 
 ## 无线（设备默认已带 kmod-mt7603 + kmod-mt7615-firmware + kmod-mmc-mtk + kmod-usb3）
 CONFIG_PACKAGE_kmod-mt7603=y

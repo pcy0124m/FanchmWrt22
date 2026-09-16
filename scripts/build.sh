@@ -96,6 +96,18 @@ fetch_source() {
       -e 's#https://git.openwrt.org/project/luci.git#https://github.com/openwrt/luci.git#g' \
       "$SRC_DIR/feeds.conf.default"
   fi
+
+  # 追加第三方 feed：iStore 应用商店 + 网页文件管理器（非 FanchmWrt 官方）
+  # 重复执行（如本地二次编译）时避免重复追加
+  if ! grep -q "src-git istore" "$SRC_DIR/feeds.conf.default"; then
+    log "追加第三方 feed（istore / filemanager）"
+    cat >> "$SRC_DIR/feeds.conf.default" <<'EOF'
+
+# 第三方：iStore 应用商店 与 网页文件管理器（编译失败可整段注释掉）
+src-git istore https://github.com/linkease/istore.git
+src-git filemanager https://github.com/sirpdboy/luci-app-filemanager.git
+EOF
+  fi
 }
 
 # -----------------------------------------------------------------------------
