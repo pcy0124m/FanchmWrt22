@@ -60,6 +60,21 @@ jobs:
           cp -r out/fanchmwrt-apks dist/ 2>/dev/null || true
           ls -lh dist
 
+      - name: 打包 APK 组件
+        run: |
+          if [[ -d dist/fanchmwrt-apks ]]; then
+            cd dist && zip -qry fanchmwrt-apks.zip fanchmwrt-apks && rm -rf fanchmwrt-apks
+            ls -lh
+          fi
+
+      - name: 上传 Artifact（固件）
+        uses: actions/upload-artifact@v4
+        with:
+          name: fanchmwrt-re-sp-01b-${{ inputs.profile || 'minimal' }}
+          path: dist/**
+          if-no-files-found: error
+          retention-days: 30
+
       - name: 失败时上传构建日志（便于定位是哪个包出错）
         if: failure()
         uses: actions/upload-artifact@v4
@@ -73,39 +88,48 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: 打包 APK 组件
-        run: |
-          if [[ -d dist/fanchmwrt-apks ]]; then
-            cd dist && zip -qry fanchmwrt-apks.zip fanchmwrt-apks && rm -rf fanchmwrt-apks
-            ls -lh
-          fi
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: 检出（读取版本/元信息）
+        uses: actions/checkout@v4
 
-      - name: 上传 Artifact
-        uses: actions/upload-artifact@v4
+      - name: 下载固件 Artifact
+        uses: actions/download-artifact@v4
         with:
           name: fanchmwrt-re-sp-01b-${{ inputs.profile || 'minimal' }}
-          path: dist/**
-          if-no-files-found: error
-          retention-days: 30
+          path: dist
 
-      - name: 发布 Release（正式版，仅 v* tag 触发）
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: 发布到 Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/*.bin dist/*.itb dist/*.zip \
-            --generate-notes \
-            --title "FanchmWrt RE-SP-01B ${GITHUB_REF_NAME}" \
-            --notes "刷机包与配套 APK 组件。刷机步骤见仓库 README.md。"
+          # 只收集真实存在的产物：glob 匹配不到时展开为空，避免把字面量
+          # "dist/*.zip" 传给 gh 导致 "file not found" 报错（上一版就死在这）
+          shopt -s nullglob
+          files=( dist/*.bin dist/*.itb dist/*.zip )
+          shopt -u nullglob
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::dist/ 下没有任何可发布的固件产物"; exit 1
+          fi
+          echo "将发布以下文件："
+          printf '  %s\n' "${files[@]}"
 
-      - name: 发布滚动 Release（autobuild，main 每次构建成功后更新）
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # 删掉旧的滚动发布（连 tag 一起），再以当前 commit 重建
-          gh release delete autobuild --yes --cleanup-tag 2>/dev/null || true
-          gh release create autobuild dist/*.bin dist/*.itb dist/*.zip \
-            --prerelease \
-            --title "自动构建（最新 main 分支）" \
-            --notes "由 CI 在每次 main 分支构建成功后自动更新。来源 commit: ${GITHUB_SHA:0:7}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            # 滚动发布：先删旧的 autobuild（连 tag 一起），再以当前 commit 重建
+            gh release delete autobuild --yes --cleanup-tag 2>/dev/null || true
+            gh release create autobuild "${files[@]}" \
+              --prerelease \
+              --title "自动构建（最新 main 分支）" \
+              --notes "由 CI 在每次 main 分支构建成功后自动更新。来源 commit: ${GITHUB_SHA:0:7}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF_NAME}"
+            gh release create "$tag" "${files[@]}" \
+              --generate-notes \
+              --title "FanchmWrt RE-SP-01B $tag" \
+              --notes "刷机包与配套 APK 组件。刷机步骤见仓库 README.md。"
+          fi
