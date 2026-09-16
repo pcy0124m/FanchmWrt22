@@ -97,16 +97,25 @@ fetch_source() {
       "$SRC_DIR/feeds.conf.default"
   fi
 
-  # 追加第三方 feed：iStore 应用商店 + 网页文件管理器（非 FanchmWrt 官方）
+  # 追加第三方 feed：iStore 应用商店（官方推荐集成方式，分支用 ;main）
   # 重复执行（如本地二次编译）时避免重复追加
   if ! grep -q "src-git istore" "$SRC_DIR/feeds.conf.default"; then
-    log "追加第三方 feed（istore / filemanager）"
+    log "追加第三方 feed（istore）"
     cat >> "$SRC_DIR/feeds.conf.default" <<'EOF'
 
-# 第三方：iStore 应用商店 与 网页文件管理器（编译失败可整段注释掉）
-src-git istore https://github.com/linkease/istore.git
-src-git filemanager https://github.com/sirpdboy/luci-app-filemanager.git
+# 第三方：iStore 应用商店（编译失败可整段注释掉）
+src-git istore https://github.com/linkease/istore;main
 EOF
+  fi
+
+  # 网页文件管理器 luci-app-fileassistant：直接克隆进 package/ 目录。
+  # （不用 feed 的原因：该仓库 Makefile 在根目录，部分 OpenWrt 版本的 feed 扫描
+  #   对根级包支持不稳；放 package/ 下 100% 会被扫描到）
+  if [[ ! -d "$SRC_DIR/package/luci-app-fileassistant/.git" ]]; then
+    log "克隆 luci-app-fileassistant（网页文件管理器）→ package/"
+    rm -rf "$SRC_DIR/package/luci-app-fileassistant"
+    git clone --depth 1 https://github.com/kenzok78/luci-app-fileassistant.git \
+      "$SRC_DIR/package/luci-app-fileassistant"
   fi
 }
 
@@ -144,7 +153,8 @@ build() {
   log "开始编译（-j$JOBS，首次约 1.5~3 小时）"
   if ! make -j"$JOBS" ; then
     warn "并行编译失败，改用单线程重跑以定位错误"
-    make -j1 V=s
+    make -j1 V=s 2>&1 | tee "$ROOT_DIR/build-full.log" \
+      || die "单线程编译仍失败，完整日志已保存: $ROOT_DIR/build-full.log"
   fi
 }
 
